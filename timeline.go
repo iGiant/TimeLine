@@ -97,7 +97,7 @@ func (tl *TimeLine) AddDuration(duration int, first bool) (EventTime, error) {
 		tempDuration = events[i].End - events[i].Begin
 		if (tempDuration > duration) && (flag || tempDuration < min) {
 			if first {
-				begin, end = events[index].Begin, events[index].Begin+duration
+				begin, end = events[i].Begin, events[i].Begin+duration
 				err = tl.addEvent(begin, end, false)
 				return EventTime{begin, end}, err
 			}
