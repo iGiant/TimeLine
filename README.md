@@ -7,7 +7,18 @@ go get -u github.com/iGiant/TimeLine
 
 Пример использования:
 ```go
-tl, err := CreateTL(8,20,17,5)
+package main
+
+import (
+	"fmt"
+	"os"
+	"github.com/iGiant/TimeLine"
+)
+
+
+func main() {
+
+	tl, err := TimeLine.CreateTL(8,20,17,5)
 	if err != nil {
 		panic(err)
 	}
@@ -24,15 +35,15 @@ tl, err := CreateTL(8,20,17,5)
 		fmt.Println(err)
 	}
 	err = tl.Add(15,0, 16,0, true)
-	fmt.Println("Рабочий день:", tl.WorkingDay)
-	for _, event := range tl.Events {
+	fmt.Println("Рабочий день:", tl.Day)
+	for _, event := range tl.EventTimes {
 		fmt.Println(event)
 	}
 	fmt.Println("Свободное время:")
 	for _, event := range tl.GetEmpty() {
 		fmt.Println(event)
 	}
-	event, err := tl.AddDuration(125)
+	event, err := tl.AddDuration(125, true)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -42,4 +53,5 @@ tl, err := CreateTL(8,20,17,5)
 	for _, event := range tl.GetEmpty() {
 		fmt.Println(event)
 	}
+}
   ```
