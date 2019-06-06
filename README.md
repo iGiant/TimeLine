@@ -1,8 +1,12 @@
 # TimeLine
 Нахождение временных промежутков, достаточных для добавления событий определенной длительности
+## Installation
+```sh
+go get -u github.com/iGiant/kerio-api
+```
 
 Пример использования:
-```
+```go
 tl, err := CreateTL(8,20,17,5)
 	if err != nil {
 		panic(err)
