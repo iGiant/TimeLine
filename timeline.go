@@ -1,4 +1,4 @@
-package TimeLine
+package timeline
 
 import (
 	"fmt"
