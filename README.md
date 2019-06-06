@@ -32,7 +32,7 @@ tl, err := CreateTL(8,20,17,5)
 	for _, event := range tl.GetEmpty() {
 		fmt.Println(event)
 	}
-	event, err := tl.AddDuration(125)
+	event, err := tl.AddDuration(125, false)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
