@@ -2,7 +2,7 @@
 Нахождение временных промежутков, достаточных для добавления событий определенной длительности
 ## Installation
 ```sh
-go get -u github.com/iGiant/TimeLine
+go get -u github.com/iGiant/timeline
 ```
 
 Пример использования:
