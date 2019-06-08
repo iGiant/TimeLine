@@ -6,10 +6,11 @@ import (
 )
 
 type (
+	OffsetTime int
 	// EventTime время события
 	EventTime struct {
 		// Begin - начало события, End - конец события
-		Begin, End int
+		Begin, End OffsetTime
 	}
 	// TimeLine - временная линия
 	TimeLine struct {
@@ -22,9 +23,11 @@ type (
 
 // String - переопределение для вывода времени события в формате hh:mm – hh:mm
 func (e EventTime) String() string {
-	startH, startM := tL2time(e.Begin)
-	endH, endM := tL2time(e.End)
-	return fmt.Sprintf("%.2d:%.2d – %.2d:%.2d", startH, startM, endH, endM)
+	return fmt.Sprintf("%s – %s", e.Begin, e.End)
+}
+
+func (o OffsetTime) String() string {
+	return fmt.Sprintf("%.2d:%.2d", o/60, o%60)
 }
 
 // CreateTL - конструктор создания временной линии
@@ -42,8 +45,8 @@ func CreateTL(beginHour, beginMinute, endHour, endMinute int) (TimeLine, error) 
 	if endMinute < 0 || endMinute > 59 {
 		endMinute = 59
 	}
-	beginTL := time2tL(beginHour, beginMinute)
-	endTL := time2tL(endHour, endMinute)
+	beginTL := time2tL(OffsetTime(beginHour), OffsetTime(beginMinute))
+	endTL := time2tL(OffsetTime(endHour), OffsetTime(endMinute))
 	if beginTL > endTL {
 		return TimeLine{}, fmt.Errorf("the beginning of the period is later than the ending")
 	}
@@ -56,10 +59,11 @@ func CreateTL(beginHour, beginMinute, endHour, endMinute int) (TimeLine, error) 
 // doNotMatter - добавлять ли событие, если его время пересекается со временем добавленного ранее события
 // возвращает ошибку, если время пересекается
 func (tl *TimeLine) Add(hoursBegin, minutesBegin, hoursEnd, minutesEnd int, doNotMatter bool) error {
-	return tl.addEvent(time2tL(hoursBegin, minutesBegin), time2tL(hoursEnd, minutesEnd), doNotMatter)
+	return tl.addEvent(time2tL(OffsetTime(hoursBegin), OffsetTime(minutesBegin)),
+		time2tL(OffsetTime(hoursEnd), OffsetTime(minutesEnd)), doNotMatter)
 }
 
-func (tl *TimeLine) addEvent(begin, end int, doNotMatter bool) (err error) {
+func (tl *TimeLine) addEvent(begin, end OffsetTime, doNotMatter bool) (err error) {
 	for _, event := range tl.EventTimes {
 		if (begin > event.Begin && begin < event.End) || (end > event.Begin && end < event.End) {
 			err = fmt.Errorf("event intersects with other events")
@@ -70,7 +74,7 @@ func (tl *TimeLine) addEvent(begin, end int, doNotMatter bool) (err error) {
 			}
 		}
 	}
-	(*tl).EventTimes = append((*tl).EventTimes, EventTime{Begin: begin, End: end})
+	(*tl).EventTimes = append((*tl).EventTimes, EventTime{Begin: OffsetTime(begin), End: OffsetTime(end)})
 	tl.sort()
 	return
 }
@@ -81,7 +85,7 @@ func (tl *TimeLine) addEvent(begin, end int, doNotMatter bool) (err error) {
 func (tl *TimeLine) AddDuration(duration int, first bool) (EventTime, error) {
 	var (
 		err        error
-		begin, end int
+		begin, end OffsetTime
 	)
 	events := tl.GetEmpty()
 	if len(events) == 0 {
@@ -89,15 +93,15 @@ func (tl *TimeLine) AddDuration(duration int, first bool) (EventTime, error) {
 	}
 	var (
 		index        = -1
-		min          = 0
-		tempDuration int
+		min          OffsetTime
+		tempDuration OffsetTime
 		flag         = true
 	)
 	for i := range events {
 		tempDuration = events[i].End - events[i].Begin
-		if (tempDuration >= duration) && (flag || tempDuration < min) {
+		if (tempDuration >= OffsetTime(duration)) && (flag || tempDuration < min) {
 			if first {
-				begin, end = events[i].Begin, events[i].Begin+duration
+				begin, end = events[i].Begin, events[i].Begin+OffsetTime(duration)
 				err = tl.addEvent(begin, end, false)
 				return EventTime{begin, end}, err
 			}
@@ -109,7 +113,7 @@ func (tl *TimeLine) AddDuration(duration int, first bool) (EventTime, error) {
 	if index == -1 {
 		return EventTime{}, fmt.Errorf("no free period")
 	}
-	begin, end = events[index].Begin, events[index].Begin+duration
+	begin, end = events[index].Begin, events[index].Begin+OffsetTime(duration)
 	err = tl.addEvent(begin, end, false)
 	return EventTime{begin, end}, err
 }
@@ -117,7 +121,7 @@ func (tl *TimeLine) AddDuration(duration int, first bool) (EventTime, error) {
 // GetEmpty() получить список свободных "окон" во временной линии
 func (tl TimeLine) GetEmpty() []EventTime {
 	events := make([]EventTime, 0, 20)
-	var begin, end int
+	var begin, end OffsetTime
 	if tl.EventTimes[0].Begin > tl.Day.Begin {
 		begin = tl.Day.Begin
 		end = tl.EventTimes[0].Begin
@@ -144,12 +148,12 @@ func (tl *TimeLine) sort() {
 }
 
 // конвертация времени из часов и минут в смещение в минутах от начала суток
-func time2tL(hour, minute int) int {
-	return hour*60 + minute
+func time2tL(hour, minute OffsetTime) OffsetTime {
+	return OffsetTime(hour*60 + minute)
 }
 
 // конвертация времени из смещения в минутах от начала суток в часы и минуты
-func tL2time(tl int) (int, int) {
+func tL2time(tl OffsetTime) (OffsetTime, OffsetTime) {
 	absTL := tl
 	return absTL / 60, absTL % 60
 }
