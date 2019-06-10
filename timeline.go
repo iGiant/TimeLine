@@ -95,17 +95,17 @@ func (tl *TimeLine) addEvent(begin, end OffsetTime, doNotMatter bool) (err error
 }
 
 // AddDurationFirst - добавляет событие в первое свободное "окно"
-func (tl TimeLine) AddDurationFirst(duration int) (EventTime, error) {
+func (tl *TimeLine) AddDurationFirst(duration int) (EventTime, error) {
 	return tl.addDuration(0, 0, duration, first)
 }
 
 // AddDurationMin - добавляет событие в минимальное по размеру свободное "окно"
-func (tl TimeLine) AddDurationMin(duration int) (EventTime, error) {
+func (tl *TimeLine) AddDurationMin(duration int) (EventTime, error) {
 	return tl.addDuration(0, 0, duration, min)
 }
 
 // AddDurationExactTime - добавляет событие в точное время и с известной длительностью
-func (tl TimeLine) AddDurationExactTime(beginHour, beginMinute, duration int) (EventTime, error) {
+func (tl *TimeLine) AddDurationExactTime(beginHour, beginMinute, duration int) (EventTime, error) {
 	return tl.addDuration(beginHour, beginMinute, duration, exactTime)
 }
 
@@ -162,11 +162,6 @@ func (tl *TimeLine) addDuration(beginH, beginM, duration int, windows windowsTyp
 func (tl TimeLine) GetEmpty() []EventTime {
 	events := make([]EventTime, 0, 20)
 	var begin, end OffsetTime
-	//if tl.EventTimes[0].Begin > tl.Day.Begin {
-	//	begin = tl.Day.Begin
-	//	end = tl.EventTimes[0].Begin
-	//	events = append(events, EventTime{Begin: begin, End: end})
-	//}
 	for i := 0; i < len(tl.EventTimes)-1; i++ {
 		if tl.EventTimes[i].End < tl.EventTimes[i+1].Begin {
 			begin = tl.EventTimes[i].End
@@ -174,11 +169,6 @@ func (tl TimeLine) GetEmpty() []EventTime {
 			events = append(events, EventTime{Begin: begin, End: end})
 		}
 	}
-	//if tl.EventTimes[len(tl.EventTimes)-1].End < tl.Day.End {
-	//	begin = tl.EventTimes[len(tl.EventTimes)-1].End
-	//	end = tl.Day.End
-	//	events = append(events, EventTime{Begin: begin, End: end})
-	//}
 	return events
 }
 
