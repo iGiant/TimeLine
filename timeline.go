@@ -59,6 +59,8 @@ func CreateTL(beginHour, beginMinute, endHour, endMinute int) (TimeLine, error) 
 		return TimeLine{}, fmt.Errorf("the beginning of the period is later than the ending")
 	}
 	tl := TimeLine{Day: EventTime{Begin: beginTL, End: endTL}}
+	_ = tl.addEvent(beginTL, beginTL, true)
+	_ = tl.addEvent(endTL, endTL, true)
 	return tl, nil
 }
 
@@ -140,7 +142,7 @@ func (tl *TimeLine) addDuration(beginH, beginM, duration int, windows windowsTyp
 		if (tempDuration >= OffsetTime(duration)) && (flag || tempDuration < min) {
 			if windows == first {
 				begin, end = events[i].Begin, events[i].Begin+OffsetTime(duration)
-				err = tl.addEvent(begin, end, false)
+				err = tl.addEvent(begin, end, true)
 				return EventTime{begin, end}, err
 			}
 			index = i
