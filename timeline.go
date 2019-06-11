@@ -25,7 +25,7 @@ type (
 
 const (
 	first windowsType = iota
-	min
+	minimum
 	exactTime
 )
 
@@ -53,38 +53,34 @@ func CreateTL(beginHour, beginMinute, endHour, endMinute int) (TimeLine, error) 
 	if endMinute < 0 || endMinute > 59 {
 		endMinute = 59
 	}
-	beginTL := time2tL(OffsetTime(beginHour), OffsetTime(beginMinute))
-	endTL := time2tL(OffsetTime(endHour), OffsetTime(endMinute))
+	beginTL := OffsetTime(beginHour*60 + beginMinute)
+	endTL := OffsetTime(endHour*60 + endMinute)
 	if beginTL > endTL {
 		return TimeLine{}, fmt.Errorf("the beginning of the period is later than the ending")
 	}
 	tl := TimeLine{Day: EventTime{Begin: beginTL, End: endTL}}
-	_ = tl.addEvent(beginTL, beginTL, true)
-	_ = tl.addEvent(endTL, endTL, true)
 	return tl, nil
 }
 
 // Add - добавление периода события во временную линию
 // hoursBegin, minutesBegin, hoursEnd, minutesEnd - время начала и конца события в часах и минутах
-// doNotMatter - добавлять ли событие, если его время пересекается со временем добавленного ранее события
-// возвращает ошибку, если время пересекается
+// Если событие пересекается с ранее введенным, то оно не добавляется.
 func (tl *TimeLine) Add(hoursBegin, minutesBegin, hoursEnd, minutesEnd int) error {
-	return tl.addEvent(time2tL(OffsetTime(hoursBegin), OffsetTime(minutesBegin)),
-		time2tL(OffsetTime(hoursEnd), OffsetTime(minutesEnd)), false)
+	return tl.addEvent(OffsetTime(hoursBegin*60+minutesBegin), OffsetTime(hoursEnd*60+minutesEnd), false)
 }
 
+// AddAnyWay - добавление периода события во временную линию
+// hoursBegin, minutesBegin, hoursEnd, minutesEnd - время начала и конца события в часах и минутах
+// Если событие пересекается с ранее введенным, то оно добавляется.
 func (tl *TimeLine) AddAnyWay(hoursBegin, minutesBegin, hoursEnd, minutesEnd int) error {
-	return tl.addEvent(time2tL(OffsetTime(hoursBegin), OffsetTime(minutesBegin)),
-		time2tL(OffsetTime(hoursEnd), OffsetTime(minutesEnd)), true)
+	return tl.addEvent(OffsetTime(hoursBegin*60+minutesBegin), OffsetTime(hoursEnd*60+minutesEnd), true)
 }
 
 func (tl *TimeLine) addEvent(begin, end OffsetTime, doNotMatter bool) (err error) {
-	for _, event := range tl.EventTimes {
-		if (begin > event.Begin && begin < event.End) || (end > event.Begin && end < event.End) {
-			err = fmt.Errorf("event intersects with other events")
-			if doNotMatter {
-				break
-			} else {
+	if !doNotMatter {
+		for _, event := range tl.EventTimes {
+			if (begin > event.Begin && begin < event.End) || (end > event.Begin && end < event.End) {
+				err = fmt.Errorf("event intersects with other events")
 				return
 			}
 		}
@@ -101,7 +97,7 @@ func (tl *TimeLine) AddDurationFirst(duration int) (EventTime, error) {
 
 // AddDurationMin - добавляет событие в минимальное по размеру свободное "окно"
 func (tl *TimeLine) AddDurationMin(duration int) (EventTime, error) {
-	return tl.addDuration(0, 0, duration, min)
+	return tl.addDuration(0, 0, duration, minimum)
 }
 
 // AddDurationExactTime - добавляет событие в точное время и с известной длительностью
@@ -114,64 +110,80 @@ func (tl *TimeLine) AddDurationExactTime(beginHour, beginMinute, duration int) (
 // first - признак добавления (true - добавить в первое подходящее "окно", false - добавить в минимальное подходящее "окно"
 func (tl *TimeLine) addDuration(beginH, beginM, duration int, windows windowsType) (EventTime, error) {
 	var (
-		err        error
-		begin, end OffsetTime
-	)
-	if windows == exactTime {
-		beginOffset := time2tL(OffsetTime(beginH), OffsetTime(beginM))
-		if beginOffset >= tl.Day.Begin {
-			begin, end = beginOffset, beginOffset+OffsetTime(duration)
-			err = tl.addEvent(begin, end, false)
-			return EventTime{begin, end}, err
-		} else {
-			return EventTime{}, fmt.Errorf("event starts before timeline begins")
-		}
-	}
-	events := tl.GetEmpty()
-	if len(events) == 0 {
-		return EventTime{}, fmt.Errorf("no free period")
-	}
-	var (
-		index        = -1
-		min          OffsetTime
+		minBegin     OffsetTime
+		minDuration  = tl.Day.End - tl.Day.Begin
 		tempDuration OffsetTime
 		lastEvent    OffsetTime
-		flag         = true
 	)
-	for i := range events {
-		if events[i].End > lastEvent {
-			lastEvent = events[i].End
-		}
-		tempDuration = lastEvent - events[i].Begin
-		if (tempDuration >= OffsetTime(duration)) && (flag || tempDuration < min) {
-			if windows == first {
-				begin, end = events[i].Begin, events[i].Begin+OffsetTime(duration)
-				err = tl.addEvent(begin, end, true)
-				return EventTime{begin, end}, err
+	switch windows {
+	case exactTime:
+		{
+			beginOffset := OffsetTime(beginH*60 + beginM)
+			if beginOffset >= tl.Day.Begin {
+				begin, end := beginOffset, beginOffset+OffsetTime(duration)
+				_ = tl.addEvent(begin, end, true)
+				return EventTime{begin, end}, nil
 			}
-			index = i
-			min = tempDuration
-			flag = false
+			return EventTime{}, fmt.Errorf("event starts before timeline begins")
+		}
+	case first:
+		{
+			events := tl.GetEmpty()
+			if len(events) == 0 {
+				break
+			}
+			for _, event := range events {
+				if event.End > lastEvent {
+					lastEvent = event.End
+				}
+				tempDuration = lastEvent - event.Begin
+				if tempDuration >= OffsetTime(duration) {
+					_ = tl.addEvent(event.Begin, event.Begin+OffsetTime(duration), true)
+					return EventTime{event.Begin, event.Begin + OffsetTime(duration)}, nil
+				}
+			}
+		}
+	case minimum:
+		{
+			events := tl.GetEmpty()
+			if len(events) == 0 {
+				break
+			}
+			for _, event := range events {
+				if event.End > lastEvent {
+					lastEvent = event.End
+				}
+				tempDuration = lastEvent - event.Begin
+				if (tempDuration >= OffsetTime(duration)) && (tempDuration < minDuration) {
+					minBegin = event.Begin
+					minDuration = tempDuration
+				}
+			}
+			if minBegin != 0 {
+				_ = tl.addEvent(minBegin, minBegin+OffsetTime(duration), true)
+				return EventTime{minBegin, minBegin + OffsetTime(duration)}, nil
+			}
 		}
 	}
-	if index == -1 {
-		return EventTime{}, fmt.Errorf("no free period")
-	}
-	begin, end = events[index].Begin, events[index].Begin+OffsetTime(duration)
-	err = tl.addEvent(begin, end, false)
-	return EventTime{begin, end}, err
+	return EventTime{}, fmt.Errorf("no free period")
 }
 
 // GetEmpty() получить список свободных "окон" во временной линии
 func (tl TimeLine) GetEmpty() []EventTime {
-	events := make([]EventTime, 0, 20)
-	var begin, end OffsetTime
-	for i := 0; i < len(tl.EventTimes)-1; i++ {
+	if len(tl.EventTimes) == 0 {
+		return []EventTime{{tl.Day.Begin, tl.Day.End}}
+	}
+	events := make([]EventTime, 0)
+	if tl.EventTimes[0].Begin > tl.Day.Begin {
+		events = append(events, EventTime{tl.Day.Begin, tl.EventTimes[0].Begin})
+	}
+	for i := 1; i < len(tl.EventTimes)-2; i++ {
 		if tl.EventTimes[i].End < tl.EventTimes[i+1].Begin {
-			begin = tl.EventTimes[i].End
-			end = tl.EventTimes[i+1].Begin
-			events = append(events, EventTime{Begin: begin, End: end})
+			events = append(events, EventTime{Begin: tl.EventTimes[i].End, End: tl.EventTimes[i+1].Begin})
 		}
+	}
+	if tl.EventTimes[len(tl.EventTimes)-1].End < tl.Day.End {
+		events = append(events, EventTime{Begin: tl.EventTimes[len(tl.EventTimes)-1].End, End: tl.Day.End})
 	}
 	return events
 }
@@ -179,15 +191,4 @@ func (tl TimeLine) GetEmpty() []EventTime {
 // сортировка событий по времени начала
 func (tl *TimeLine) sort() {
 	sort.Slice((*tl).EventTimes, func(i, j int) bool { return (*tl).EventTimes[i].Begin < (*tl).EventTimes[j].Begin })
-}
-
-// конвертация времени из часов и минут в смещение в минутах от начала суток
-func time2tL(hour, minute OffsetTime) OffsetTime {
-	return OffsetTime(hour*60 + minute)
-}
-
-// конвертация времени из смещения в минутах от начала суток в часы и минуты
-func tL2time(tl OffsetTime) (OffsetTime, OffsetTime) {
-	absTL := tl
-	return absTL / 60, absTL % 60
 }
