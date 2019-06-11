@@ -135,10 +135,14 @@ func (tl *TimeLine) addDuration(beginH, beginM, duration int, windows windowsTyp
 		index        = -1
 		min          OffsetTime
 		tempDuration OffsetTime
+		lastEvent    OffsetTime
 		flag         = true
 	)
 	for i := range events {
-		tempDuration = events[i].End - events[i].Begin
+		if events[i].End > lastEvent {
+			lastEvent = events[i].End
+		}
+		tempDuration = lastEvent - events[i].Begin
 		if (tempDuration >= OffsetTime(duration)) && (flag || tempDuration < min) {
 			if windows == first {
 				begin, end = events[i].Begin, events[i].Begin+OffsetTime(duration)
