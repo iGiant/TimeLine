@@ -177,7 +177,7 @@ func (tl TimeLine) GetEmpty() []EventTime {
 	if tl.EventTimes[0].Begin > tl.Day.Begin {
 		events = append(events, EventTime{tl.Day.Begin, tl.EventTimes[0].Begin})
 	}
-	for i := 1; i < len(tl.EventTimes)-2; i++ {
+	for i := 0; i < len(tl.EventTimes)-1; i++ {
 		if tl.EventTimes[i].End < tl.EventTimes[i+1].Begin {
 			events = append(events, EventTime{Begin: tl.EventTimes[i].End, End: tl.EventTimes[i+1].Begin})
 		}
